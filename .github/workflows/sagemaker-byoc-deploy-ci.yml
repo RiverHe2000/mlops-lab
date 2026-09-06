@@ -70,12 +70,15 @@ jobs:
       - name: Build image
         run: docker build -t smdeploy:ci -f container/Dockerfile .
       - name: Vulnerability scan (critical, fixable)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          image-ref: smdeploy:ci
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        # Trivy's own image rather than trivy-action: the action resolves and runs an
+        # installer script whose arguments have changed between releases, which is one more
+        # moving part than a security gate should have. The image tag pins the scanner.
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:0.74.0 image \
+              --severity CRITICAL --ignore-unfixed --exit-code 1 --no-progress smdeploy:ci
       - name: Lay out /opt/ml and run `train`
         run: |
           python - <<'PY'
