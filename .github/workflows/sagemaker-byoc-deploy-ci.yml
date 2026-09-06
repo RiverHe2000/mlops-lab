@@ -66,7 +66,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e . && python scripts/make_example_data.py --out examples
+      # `[sim]` adds the HTTP client the in-process container simulation drives the app with;
+      # the image itself is still built from the bare `pip install .` in the Dockerfile.
+      - run: pip install -e ".[sim]" && python scripts/make_example_data.py --out examples
       - name: Build image
         run: docker build -t smdeploy:ci -f container/Dockerfile .
       - name: Vulnerability scan (critical, fixable)

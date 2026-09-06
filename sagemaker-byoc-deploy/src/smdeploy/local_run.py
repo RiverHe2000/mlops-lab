@@ -13,8 +13,6 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fastapi.testclient import TestClient
-
 from .hyperparams import TrainingHyperparameters
 from .inference import ModelHandler
 from .paths import SageMakerPaths
@@ -87,6 +85,15 @@ def simulate_invocation(
     threshold: float | None = None,
     extra_headers: dict[str, str] | None = None,
 ) -> tuple[int, bytes, dict[str, str]]:
+    # Imported here, not at module scope: `TestClient` needs an HTTP client library that the
+    # serving image has no reason to carry, and `smdeploy.cli` imports this module. Install
+    # the `sim` extra to drive the in-process simulation.
+    try:
+        from fastapi.testclient import TestClient
+    except (ImportError, RuntimeError) as exc:  # RuntimeError: starlette without a client
+        msg = "the in-process simulation needs an HTTP client: pip install 'smdeploy[sim]'"
+        raise RuntimeError(msg) from exc
+
     app = create_app(ModelHandler(model_dir, threshold=threshold))
     with TestClient(app) as client:
         ping = client.get("/ping")

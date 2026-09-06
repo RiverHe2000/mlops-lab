@@ -23,10 +23,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The in-process container simulation (`smdeploy local-run`, and CI's contract check before
+# an image exists) drives the FastAPI app through fastapi.testclient, which needs an HTTP
+# client. The serving image does not, so it stays out of `dependencies`.
+sim = ["httpx>=0.27"]
 dev = [
+  "httpx>=0.27",
   "pytest>=8.3",
   "pytest-cov>=5.0",
-  "httpx>=0.27",
   "moto[sagemaker,s3,ecr,sts,cloudwatch,applicationautoscaling,iam]>=5.0",
   "boto3-stubs[sagemaker,sagemaker-runtime,ecr,s3,sts,cloudwatch,application-autoscaling]",
   "cfn-lint>=1.20",
