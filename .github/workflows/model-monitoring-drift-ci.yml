@@ -55,8 +55,10 @@ jobs:
           PY
       - name: Validate Prometheus rules and Grafana dashboard
         run: |
-          docker run --rm -v "$PWD/deploy/prometheus:/rules:ro" --entrypoint promtool prom/prometheus:v2.53.0 check rules /rules/alerts.yml
-          docker run --rm -v "$PWD/deploy/prometheus:/cfg:ro" --entrypoint promtool prom/prometheus:v2.53.0 check config /cfg/prometheus.yml
+          docker run --rm -v "$PWD/deploy/prometheus:/etc/prometheus:ro" --entrypoint promtool \
+            prom/prometheus:v2.53.0 check rules /etc/prometheus/alerts.yml
+          docker run --rm -v "$PWD/deploy/prometheus:/etc/prometheus:ro" --entrypoint promtool \
+            prom/prometheus:v2.53.0 check config /etc/prometheus/prometheus.yml
           python -c "import json; d=json.load(open('deploy/grafana/dashboards/mlwatch.json')); assert d['panels'], 'empty dashboard'"
       - name: Build exporter image
         run: docker build -t mlwatch:ci -f deploy/Dockerfile .

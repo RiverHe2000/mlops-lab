@@ -70,7 +70,7 @@ jobs:
       - name: Build image
         run: docker build -t smdeploy:ci -f container/Dockerfile .
       - name: Vulnerability scan (critical, fixable)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: smdeploy:ci
           severity: CRITICAL

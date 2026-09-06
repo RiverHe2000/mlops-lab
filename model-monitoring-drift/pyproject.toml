@@ -28,8 +28,8 @@ dev = [
   "httpx>=0.27",
   "hypothesis>=6.100",
   "scikit-learn>=1.5",
-  "ruff>=0.6",
-  "mypy>=1.11",
+  "ruff==0.16.6",       # pinned: a lint gate must not drift with the tool
+  "mypy==2.3.1",
   "pandas-stubs",
   "types-PyYAML",
   "uvicorn[standard]>=0.30",
