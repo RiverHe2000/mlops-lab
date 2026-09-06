@@ -66,10 +66,13 @@ Docker parts (MLflow server compose, the BYOC image, the Prometheus/Grafana stac
 called out in each README; all three were run for real on Docker Desktop, and the problems
 that only a real stack exposes are recorded in each `docs/RESULTS.md`.
 
-**To run the CD workflow** you need, in the repository settings: secret
-`AWS_DEPLOY_ROLE_ARN`, variables `ARTIFACT_BUCKET` and `SAGEMAKER_EXECUTION_ROLE_ARN` (all
-CloudFormation outputs), and the `staging` / `production` environments. Without them the CI
-workflow still runs in full — it never touches AWS.
+**To run the CD workflow**: the `staging` and `production` environments are configured (with
+a required reviewer on `production`, so the four-eyes gate is real), as are the `AWS_REGION`
+and `PROJECT_NAME` variables. What is still needed — the deployment role, artefact bucket and
+execution role, all outputs of the CloudFormation template — is in
+[docs/DEPLOYMENT_SETUP.md](docs/DEPLOYMENT_SETUP.md), together with the teardown commands,
+because endpoints bill per hour. Without any of it the CI workflow still runs in full: it
+never touches AWS.
 
 ---
 
