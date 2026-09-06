@@ -1,0 +1,6 @@
+age,income,loan_amount,term_months,credit_utilisation,num_delinquencies,employment_status,housing,purpose,region
+64,73027.61,7755.48,24,0.2726,0,self_employed,rent,debt_consolidation,NSW
+39,,3030.98,12,0.3028,1,employed,rent,car,VIC
+28,101502.37,9229.79,24,0.2341,0,employed,rent,home_improvement,NSW
+33,26680.42,17175.79,48,0.2589,0,employed,rent,home_improvement,VIC
+64,75941.13,28232.9,36,0.26,1,retired,own,debt_consolidation,VIC

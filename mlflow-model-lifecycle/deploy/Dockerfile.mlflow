@@ -1,0 +1,17 @@
+# MLflow tracking server image: official base + Postgres driver + S3 client, non-root.
+# Pinned to the same MLflow minor as the client library in pyproject.toml so the registry
+# schema and the pyfunc flavour stay compatible.
+FROM ghcr.io/mlflow/mlflow:v3.16.0
+
+RUN pip install --no-cache-dir "psycopg2-binary>=2.9" "boto3>=1.34" \
+ && useradd --create-home --uid 10001 mlflow
+
+USER mlflow
+WORKDIR /home/mlflow
+EXPOSE 5000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=10 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3).status == 200 else 1)"
+
+# The compose file passes the full command; this default keeps the image usable on its own.
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000"]

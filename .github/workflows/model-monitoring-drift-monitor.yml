@@ -1,0 +1,94 @@
+name: Scheduled model monitor · model-monitoring-drift
+
+# Runs the monitor over the latest window every day, keeps the consecutive-window state in the
+# repository cache, publishes the report, and branches on the exit code:
+#   0 nothing to do · 2 open/refresh an "investigate" issue · 3 also dispatch the training workflow.
+# The capture source is a demo simulation here; in production the "Fetch window" step pulls the
+# day's data-capture files from S3 with an OIDC-assumed role (see sagemaker-byoc-deploy).
+
+on:
+  schedule:
+    - cron: "15 2 * * *"          # 02:15 UTC daily
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Simulation scenario for the demo window
+        default: covariate_shift
+      magnitude:
+        description: Drift magnitude
+        default: "1.0"
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+defaults:
+  run:
+    working-directory: model-monitoring-drift
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+
+      - name: Restore monitor state (consecutive-window counters)
+        uses: actions/cache@v4
+        with:
+          path: model-monitoring-drift/state/
+          key: mlwatch-state-${{ github.run_id }}
+          restore-keys: mlwatch-state-
+
+      - name: Fetch window
+        # Production: aws s3 sync s3://<bucket>/capture/production/$(date -u +%Y/%m/%d)/ runs/today/
+        run: |
+          mlwatch simulate --scenario "${{ inputs.scenario || 'covariate_shift' }}" --magnitude "${{ inputs.magnitude || '1.0' }}" --windows 1 --out runs/today
+          test -f baseline/baseline.json || (mkdir -p baseline && mlwatch baseline --capture runs/today/baseline.jsonl --labels runs/today/labels.jsonl --out baseline/baseline.json)
+
+      - name: Run monitor
+        id: run
+        run: |
+          set +e
+          mlwatch run --baseline baseline/baseline.json --capture runs/today/window_01.jsonl \
+            --labels runs/today/labels.jsonl --policy policies/default.yaml \
+            --state state/monitor.state.json --out runs/report --window-id "$(date -u +%F)"
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          cat runs/report/report.md >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" -le 3 ] || exit "$code"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: monitor-report-${{ github.run_id }}
+          path: model-monitoring-drift/runs/report
+          retention-days: 90
+
+      - name: Open or refresh the investigation issue
+        if: steps.run.outputs.code == '2' || steps.run.outputs.code == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Model monitor: action required ($(date -u +%F))"
+          body_file=runs/report/report.md
+          existing=$(gh issue list --label model-monitor --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file "$body_file"
+          else
+            gh issue create --title "$title" --label model-monitor --body-file "$body_file"
+          fi
+
+      - name: Trigger retraining pipeline
+        if: steps.run.outputs.code == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # In the companion repository this is the CD workflow that trains, registers and
+        # deploys a new candidate; the monitor never retrains in place.
+        run: |
+          gh workflow run cd.yml --repo "${{ vars.TRAINING_REPO || github.repository }}" || echo "training workflow dispatch not configured"

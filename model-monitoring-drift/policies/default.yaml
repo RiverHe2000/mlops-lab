@@ -1,0 +1,30 @@
+# Alert / retrain policy for the credit-PD scorer. Every number here is a model-owner decision;
+# docs/RESULTS.md reports the detection power and false-alarm rate these values achieve.
+window:
+  min_rows: 200                      # below this, drift statistics are reported but never escalated
+data_drift:
+  psi_warn: 0.10                     # credit-risk convention: 0.10 investigate, 0.25 significant
+  psi_critical: 0.25
+  test_alpha: 0.01                   # Benjamini-Hochberg-adjusted KS / chi-square across features
+  require_test_and_psi: true         # both must agree before a feature is flagged
+  consecutive_windows_for_critical: 2
+prediction_drift:
+  score_psi_warn: 0.10
+  score_psi_critical: 0.25
+  decline_rate_change_warn: 0.10     # absolute change in the share of declines
+quality:
+  missing_rate_increase_warn: 0.05
+  unseen_category_share_warn: 0.02
+  out_of_range_share_warn: 0.01
+  type_error_share_critical: 0.001
+  duplicate_share_warn: 0.01
+performance:
+  min_labels: 200
+  auc_min: 0.70
+  auc_drop_warn: 0.03
+  auc_drop_critical: 0.06
+  brier_increase_critical: 0.03
+actions:
+  investigate_on: [WARN, CRITICAL]
+  retrain_on_performance_critical: true
+  retrain_on_sustained_data_critical: true

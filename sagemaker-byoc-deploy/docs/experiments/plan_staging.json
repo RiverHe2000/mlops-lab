@@ -1,0 +1,43 @@
+{
+  "stage": {
+    "stage": "staging",
+    "endpoint": {
+      "endpoint_name": "credit-pd-staging",
+      "model_name_prefix": "credit-pd",
+      "role_arn": "arn:aws:iam::123456789012:role/credit-pd-sagemaker-execution",
+      "instance_type": "ml.m5.large",
+      "instance_count": 1,
+      "variant_name": "AllTraffic",
+      "environment": {
+        "SAGEMAKER_MODEL_SERVER_WORKERS": "2",
+        "SMDEPLOY_LOG_LEVEL": "INFO"
+      },
+      "data_capture": {
+        "s3_uri": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/capture/staging/",
+        "sampling_percent": 100
+      },
+      "tags": {
+        "project": "credit-pd"
+      },
+      "image_uri": "<from model package>",
+      "model_data_url": "s3://<from model package>"
+    },
+    "deployment_config": {
+      "BlueGreenUpdatePolicy": {
+        "TrafficRoutingConfiguration": {
+          "WaitIntervalInSeconds": 0,
+          "Type": "ALL_AT_ONCE"
+        },
+        "TerminationWaitInSeconds": 0,
+        "MaximumExecutionTimeoutInSeconds": 600
+      }
+    },
+    "alarms": {
+      "error_5xx_threshold": 1.0,
+      "latency_p99_ms": 1500.0,
+      "period_s": 60,
+      "evaluation_periods": 1
+    },
+    "autoscaling": null
+  }
+}

@@ -1,0 +1,39 @@
+# Production: Approved packages only, two instances, canary 10 % for 5 minutes guarded by the
+# 5xx and p99-latency alarms (SageMaker rolls back automatically if either fires), then full
+# shift; target-tracking autoscaling on invocations per instance; 20 % data capture.
+stage: production
+model_package_group: ${PROJECT_NAME:-credit-pd}
+require_approved: true
+endpoint:
+  endpoint_name: ${PROJECT_NAME:-credit-pd}-prod
+  model_name_prefix: ${PROJECT_NAME:-credit-pd}
+  role_arn: ${SAGEMAKER_EXECUTION_ROLE_ARN}
+  instance_type: ml.m5.large
+  instance_count: 2
+  variant_name: AllTraffic
+  environment:
+    SAGEMAKER_MODEL_SERVER_WORKERS: "2"
+    SMDEPLOY_LOG_LEVEL: INFO
+  data_capture:
+    s3_uri: s3://${ARTIFACT_BUCKET}/capture/production/
+    sampling_percent: 20
+  tags:
+    project: ${PROJECT_NAME:-credit-pd}
+rollout:
+  mode: canary
+  canary_percent: 10
+  wait_interval_s: 300
+  termination_wait_s: 300
+  max_timeout_s: 3600
+alarms:
+  error_5xx_threshold: 1
+  latency_p99_ms: 1000
+  period_s: 60
+  evaluation_periods: 2
+autoscaling:
+  min_capacity: 2
+  max_capacity: 6
+  target_invocations_per_instance: 60
+  scale_in_cooldown_s: 300
+  scale_out_cooldown_s: 60
+smoke_rows: 5

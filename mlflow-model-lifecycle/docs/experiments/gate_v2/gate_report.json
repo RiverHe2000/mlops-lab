@@ -1,0 +1,124 @@
+{
+  "decision": "HOLD",
+  "n_holdout": 250,
+  "checks": [
+    {
+      "name": "holdout_size",
+      "passed": true,
+      "value": 250.0,
+      "threshold": 200.0,
+      "detail": ""
+    },
+    {
+      "name": "auc_min",
+      "passed": true,
+      "value": 0.7936761904761904,
+      "threshold": 0.72,
+      "detail": ""
+    },
+    {
+      "name": "brier_max",
+      "passed": true,
+      "value": 0.16392937046754782,
+      "threshold": 0.2,
+      "detail": ""
+    },
+    {
+      "name": "ece_max",
+      "passed": true,
+      "value": 0.04841854942945099,
+      "threshold": 0.06,
+      "detail": ""
+    },
+    {
+      "name": "auc_noninferior",
+      "passed": false,
+      "value": -0.04241157005346793,
+      "threshold": -0.01,
+      "detail": "delta -0.0087 [-0.0424, +0.0249]"
+    },
+    {
+      "name": "brier_not_worse",
+      "passed": false,
+      "value": 0.020225264953189083,
+      "threshold": 0.01,
+      "detail": "delta +0.0074 [-0.0057, +0.0202]"
+    },
+    {
+      "name": "score_psi",
+      "passed": true,
+      "value": 0.10529152978822068,
+      "threshold": 0.25,
+      "detail": "champion \u2192 challenger"
+    },
+    {
+      "name": "same_data_snapshot",
+      "passed": true,
+      "value": null,
+      "threshold": null,
+      "detail": "paired comparison requires both models trained on the gate's data snapshot"
+    },
+    {
+      "name": "slice_auc_min[personal_status_sex]",
+      "passed": true,
+      "value": 0.7828612926652142,
+      "threshold": 0.6,
+      "detail": "worst group: female_divorced_separated_married"
+    },
+    {
+      "name": "slice_auc_min[foreign_worker]",
+      "passed": true,
+      "value": 0.7853925353925354,
+      "threshold": 0.6,
+      "detail": "worst group: yes"
+    }
+  ],
+  "challenger": {
+    "n": 250.0,
+    "positive_rate": 0.3,
+    "auc": 0.7936761904761904,
+    "gini": 0.5873523809523808,
+    "ks": 0.4704761904761905,
+    "brier": 0.16392937046754782,
+    "log_loss": 0.49329827549177313,
+    "ece": 0.04841854942945099,
+    "threshold": 0.1,
+    "expected_cost": 0.492,
+    "approval_rate": 0.304,
+    "recall": 0.9466666666666667,
+    "precision": 0.40804597701149425,
+    "bad_rate_among_approved": 0.05263157894736842
+  },
+  "champion": {
+    "n": 250.0,
+    "positive_rate": 0.3,
+    "auc": 0.8023619047619047,
+    "gini": 0.6047238095238094,
+    "ks": 0.5333333333333333,
+    "brier": 0.1565420783477984,
+    "log_loss": 0.48058687759605895,
+    "ece": 0.058893241764150145,
+    "threshold": 0.1,
+    "expected_cost": 0.576,
+    "approval_rate": 0.244,
+    "recall": 0.9333333333333333,
+    "precision": 0.37037037037037035,
+    "bad_rate_among_approved": 0.08196721311475409
+  },
+  "deltas": {
+    "auc": {
+      "estimate": -0.008685714285714297,
+      "lower": -0.04241157005346793,
+      "upper": 0.024931540885584955,
+      "level": 0.95,
+      "n_boot": 2000
+    },
+    "brier": {
+      "estimate": 0.007387292119749422,
+      "lower": -0.005656177834872155,
+      "upper": 0.020225264953189083,
+      "level": 0.95,
+      "n_boot": 2000
+    }
+  }
+}

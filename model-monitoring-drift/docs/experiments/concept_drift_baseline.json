@@ -1,0 +1,22 @@
+{
+  "out": "runs/sim/concept_drift/baseline.json",
+  "n": 5000,
+  "features": {
+    "x_income": "numeric",
+    "x_utilisation": "numeric",
+    "x_age": "numeric",
+    "x_tenure": "numeric",
+    "c_region": "categorical",
+    "c_product": "categorical"
+  },
+  "performance": {
+    "n_labels": 5000.0,
+    "positive_rate": 0.3612,
+    "auc": 0.7956528055441716,
+    "ks": 0.44307814139329627,
+    "brier": 0.17302975800597567,
+    "log_loss": 0.5192668057823343,
+    "ece": 0.013744382810213797,
+    "decline_rate": 0.2948
+  }
+}

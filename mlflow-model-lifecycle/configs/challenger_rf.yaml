@@ -1,0 +1,15 @@
+# Challenger: random forest.
+name: challenger_rf
+data_path: data/german_credit.csv
+schema_path: data/schema.yaml
+split: {test_size: 0.25, seed: 42, stratify: true}
+cv: {folds: 5, seed: 42}
+model:
+  kind: random_forest
+  params: {n_estimators: 400, max_depth: 8, min_samples_leaf: 5, n_jobs: 1}
+decision_threshold: cost_optimal
+tracking:
+  tracking_uri: sqlite:///mlruns/mlflow.db
+  experiment: credit-pd
+  registered_model: credit-pd
+tags: {owner: risk-modelling, use_case: retail_credit_pd}

@@ -1,0 +1,192 @@
+name: CD · sagemaker-byoc-deploy
+
+# build image → SageMaker training job → register (pending) → staging (all-at-once + smoke)
+# → human approval (GitHub environment) → production (canary 10 % with alarm auto-rollback).
+# AWS access is an OIDC-assumed role from infra/cloudformation/platform.yaml: no static keys.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: Continue to production after staging (requires environment approval)
+        type: boolean
+        default: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME || 'credit-pd' }}
+  ARTIFACT_BUCKET: ${{ vars.ARTIFACT_BUCKET }}
+  SAGEMAKER_EXECUTION_ROLE_ARN: ${{ vars.SAGEMAKER_EXECUTION_ROLE_ARN }}
+
+defaults:
+  run:
+    working-directory: sagemaker-byoc-deploy
+
+jobs:
+  build-push:
+    name: build + push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image_uri: ${{ steps.push.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - id: push
+        run: |
+          smdeploy push --repository "$PROJECT_NAME" --tag "${{ github.sha }}" --tag "run-${{ github.run_id }}" > push.json
+          echo "image_uri=$(python -c "import json; print(json.load(open('push.json'))['image'])")" >> "$GITHUB_OUTPUT"
+
+  train:
+    name: training job
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      model_data_url: ${{ steps.train.outputs.model_data_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-train
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - id: train
+        env:
+          IMAGE_URI: ${{ needs.build-push.outputs.image_uri }}
+          TRAINING_JOB_NAME: ${{ env.PROJECT_NAME }}-${{ github.run_id }}
+        run: |
+          smdeploy train-job --config configs/training.yaml --out training.json
+          echo "model_data_url=$(python -c "import json; print(json.load(open('training.json'))['model_artifact_uri'])")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: training-outputs
+          path: sagemaker-byoc-deploy/training.json
+
+  register:
+    name: register model package
+    needs: [build-push, train]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      package_arn: ${{ steps.register.outputs.package_arn }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-register
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: training-outputs
+          path: sagemaker-byoc-deploy
+      - id: register
+        run: |
+          smdeploy register --group "$PROJECT_NAME" \
+            --image-uri "${{ needs.build-push.outputs.image_uri }}" \
+            --model-data-url "${{ needs.train.outputs.model_data_url }}" \
+            --metrics-json training.json --min-auc 0.70 \
+            --metadata git_sha=${{ github.sha }} --metadata run_id=${{ github.run_id }} \
+            --description "run ${{ github.run_id }} from ${{ github.ref_name }}" > register.json
+          echo "package_arn=$(python -c "import json; print(json.load(open('register.json'))['arn'])")" >> "$GITHUB_OUTPUT"
+
+  deploy-staging:
+    name: deploy staging
+    needs: register
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-staging
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . && python scripts/make_example_data.py --out examples
+      - run: |
+          smdeploy deploy --stage configs/endpoint.staging.yaml \
+            --package-arn "${{ needs.register.outputs.package_arn }}" \
+            --smoke-csv examples/smoke_rows.csv --out staging-release.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-release
+          path: sagemaker-byoc-deploy/staging-release.json
+
+  approve:
+    # The GitHub `production` environment carries required reviewers: this job waits for a
+    # human, then records the approval on the model package itself (who, when, why).
+    name: approve package
+    needs: [register, deploy-staging]
+    if: github.event_name == 'push' || inputs.deploy_production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-approve
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: |
+          smdeploy approve --package-arn "${{ needs.register.outputs.package_arn }}" \
+            --by "${{ github.actor }}" --note "staging smoke passed in run ${{ github.run_id }}"
+
+  deploy-production:
+    name: deploy production (canary)
+    needs: [register, approve]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}-prod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . && python scripts/make_example_data.py --out examples
+      - run: |
+          smdeploy deploy --stage configs/endpoint.prod.yaml \
+            --package-arn "${{ needs.register.outputs.package_arn }}" \
+            --smoke-csv examples/smoke_rows.csv --out production-release.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-release
+          path: sagemaker-byoc-deploy/production-release.json

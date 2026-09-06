@@ -1,0 +1,9 @@
+
+$ /d/Project/.venv/Scripts/python.exe -m smdeploy.cli local-invoke --model-dir runs/opt-ml/model --payload examples/smoke_rows.csv --content-type text/csv; header=present --accept text/csv
+HTTP 200 text/csv; charset=utf-8
+0.116645,0
+0.594784,1
+0.140282,0
+0.374082,1
+0.377338,1
+

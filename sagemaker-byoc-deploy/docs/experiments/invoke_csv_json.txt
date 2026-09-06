@@ -1,0 +1,4 @@
+
+$ /d/Project/.venv/Scripts/python.exe -m smdeploy.cli local-invoke --model-dir runs/opt-ml/model --payload examples/smoke_rows.csv --content-type text/csv; header=present --accept application/json
+HTTP 200 application/json
+{"predictions": [{"probability": 0.11664521842181286, "label": 0}, {"probability": 0.5947836293754619, "label": 1}, {"probability": 0.14028194981967637, "label": 0}, {"probability": 0.37408184004690986, "label": 1}, {"probability": 0.37733772966473117, "label": 1}]}

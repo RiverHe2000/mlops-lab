@@ -1,0 +1,7 @@
+
+$ /d/Project/.venv/Scripts/python.exe -m mlreg.cli compare --config configs/baseline_logreg.yaml --versions 1 3 --n-boot 2000
+  metric     v1     v3   delta  ci_lower  ci_upper
+     auc 0.8024 0.8048  0.0024   -0.0294    0.0348
+      ks 0.5333 0.4990 -0.0343   -0.0965    0.0524
+   brier 0.1565 0.1632  0.0066   -0.0062    0.0191
+log_loss 0.4806 0.4953  0.0147   -0.0205    0.0478

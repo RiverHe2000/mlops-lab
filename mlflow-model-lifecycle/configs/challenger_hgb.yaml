@@ -1,0 +1,15 @@
+# Challenger: histogram gradient boosting (non-linear, no reason codes).
+name: challenger_hgb
+data_path: data/german_credit.csv
+schema_path: data/schema.yaml
+split: {test_size: 0.25, seed: 42, stratify: true}
+cv: {folds: 5, seed: 42}
+model:
+  kind: hist_gradient_boosting
+  params: {max_depth: 3, learning_rate: 0.05, max_iter: 300, l2_regularization: 1.0, early_stopping: false}
+decision_threshold: cost_optimal
+tracking:
+  tracking_uri: sqlite:///mlruns/mlflow.db
+  experiment: credit-pd
+  registered_model: credit-pd
+tags: {owner: risk-modelling, use_case: retail_credit_pd}

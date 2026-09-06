@@ -1,0 +1,5 @@
+#!/bin/sh
+# SageMaker training entrypoint: `docker run <image> train`.
+# Delegates to the console script installed from the package; exit status propagates.
+set -eu
+exec smdeploy-train "$@"

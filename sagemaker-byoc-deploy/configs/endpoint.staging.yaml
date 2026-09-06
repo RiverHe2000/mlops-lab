@@ -1,0 +1,32 @@
+# Staging: takes the newest registered package (approval happens *after* staging passes),
+# swaps all traffic at once, full data capture, no autoscaling.
+stage: staging
+model_package_group: ${PROJECT_NAME:-credit-pd}
+require_approved: false
+endpoint:
+  endpoint_name: ${PROJECT_NAME:-credit-pd}-staging
+  model_name_prefix: ${PROJECT_NAME:-credit-pd}
+  role_arn: ${SAGEMAKER_EXECUTION_ROLE_ARN}
+  instance_type: ml.m5.large
+  instance_count: 1
+  variant_name: AllTraffic
+  environment:
+    SAGEMAKER_MODEL_SERVER_WORKERS: "2"
+    SMDEPLOY_LOG_LEVEL: INFO
+  data_capture:
+    s3_uri: s3://${ARTIFACT_BUCKET}/capture/staging/
+    sampling_percent: 100
+  tags:
+    project: ${PROJECT_NAME:-credit-pd}
+rollout:
+  mode: all_at_once
+  wait_interval_s: 0
+  termination_wait_s: 0
+  max_timeout_s: 600
+alarms:
+  error_5xx_threshold: 1
+  latency_p99_ms: 1500
+  period_s: 60
+  evaluation_periods: 1
+autoscaling: null
+smoke_rows: 5

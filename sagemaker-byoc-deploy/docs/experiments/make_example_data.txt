@@ -1,0 +1,3 @@
+
+$ /d/Project/.venv/Scripts/python.exe scripts/make_example_data.py --out examples
+wrote examples/ (600 rows, default rate 0.320)

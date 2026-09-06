@@ -1,0 +1,7 @@
+
+$ /d/Project/.venv/Scripts/python.exe -m mlreg.cli serve-check --config configs/baseline_logreg.yaml --alias champion
+models:/credit-pd@champion accepted a serving payload; sample output:
+      pd decision                                                   reason_codes
+0.050848  approve   checking_status=lt_0|installment_rate_pct|other_debtors=none
+0.539054  decline duration_months|savings_status=lt_100|checking_status=0_to_200
+0.053774  approve     purpose=education|savings_status=lt_100|other_debtors=none

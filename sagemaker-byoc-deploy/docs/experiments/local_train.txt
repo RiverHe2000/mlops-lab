@@ -1,0 +1,21 @@
+
+$ /d/Project/.venv/Scripts/python.exe -m smdeploy.cli local-train --train-csv examples/credit_train.csv --validation-csv examples/credit_validation.csv --hyperparameters examples/hyperparameters.json --base-dir runs/opt-ml
+validation:auc=0.697192
+validation:log_loss=0.593690
+validation:brier=0.204551
+validation:accuracy=0.608333
+validation:precision=0.452830
+validation:recall=0.571429
+{
+  "model_dir": "runs\\opt-ml\\model",
+  "metrics_on": "validation",
+  "metrics": {
+    "auc": 0.6971916971916972,
+    "log_loss": 0.5936897140431125,
+    "brier": 0.20455096879276827,
+    "accuracy": 0.6083333333333333,
+    "precision": 0.4528301886792453,
+    "recall": 0.5714285714285714,
+    "n": 120.0
+  }
+}

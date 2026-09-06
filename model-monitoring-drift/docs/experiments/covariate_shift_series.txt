@@ -1,0 +1,4 @@
+window 01: exit 2 CRITICAL INVESTIGATE
+window 02: exit 3 CRITICAL RETRAIN
+window 03: exit 3 CRITICAL RETRAIN
+window 04: exit 3 CRITICAL RETRAIN

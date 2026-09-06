@@ -1,0 +1,4 @@
+window 01: exit 0 OK NONE
+window 02: exit 0 OK NONE
+window 03: exit 0 OK NONE
+window 04: exit 0 OK NONE

@@ -1,0 +1,109 @@
+name: CI · sagemaker-byoc-deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ["sagemaker-byoc-deploy/**", ".github/workflows/sagemaker-byoc-deploy-ci.yml"]
+  pull_request:
+    paths: ["sagemaker-byoc-deploy/**", ".github/workflows/sagemaker-byoc-deploy-ci.yml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: sagemaker-byoc-deploy
+
+jobs:
+  quality:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: sagemaker-byoc-deploy/pyproject.toml
+      - name: Install project (dev extras)
+        run: pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Type-check (mypy --strict)
+        run: mypy
+      - name: Test (pytest + coverage; includes cfn-lint, Dockerfile and workflow checks)
+        run: pytest --cov-report=xml
+      - name: Container contract without Docker (train → serve → invoke, in-process)
+        run: |
+          python scripts/make_example_data.py --out examples
+          smdeploy local-train --train-csv examples/credit_train.csv --validation-csv examples/credit_validation.csv \
+            --hyperparameters examples/hyperparameters.json --base-dir runs/opt-ml
+          smdeploy local-invoke --model-dir runs/opt-ml/model --payload examples/smoke_rows.csv \
+            --content-type "text/csv; header=present" --accept application/json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: sagemaker-byoc-deploy/coverage.xml
+          if-no-files-found: ignore
+
+  container:
+    # The real thing: build the BYOC image, run `train` with a mounted /opt/ml, then `serve`
+    # and hit /ping and /invocations exactly the way SageMaker does.
+    name: image build + contract
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . && python scripts/make_example_data.py --out examples
+      - name: Build image
+        run: docker build -t smdeploy:ci -f container/Dockerfile .
+      - name: Vulnerability scan (critical, fixable)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: smdeploy:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Lay out /opt/ml and run `train`
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from smdeploy.local_run import write_sagemaker_layout
+          write_sagemaker_layout(Path("runs/opt-ml"), train_csv=Path("examples/credit_train.csv"),
+                                 validation_csv=Path("examples/credit_validation.csv"),
+                                 hyperparameters={"target": "default", "model": "logistic_regression", "C": 0.5,
+                                                  "threshold": 0.3, "id_columns": "application_id"})
+          PY
+          chmod -R a+rwX runs/opt-ml
+          docker run --rm -v "$PWD/runs/opt-ml:/opt/ml" smdeploy:ci train | tee train.log
+          grep -E '^validation:auc=' train.log
+          test -f runs/opt-ml/model/model.joblib && test -f runs/opt-ml/model/metadata.json
+      - name: Run `serve` and invoke
+        run: |
+          cid=$(docker run -d -p 8080:8080 -v "$PWD/runs/opt-ml/model:/opt/ml/model:ro" smdeploy:ci serve)
+          for i in $(seq 1 30); do curl -fsS http://localhost:8080/ping && break || sleep 2; done
+          curl -fsS -X POST -H "Content-Type: text/csv; header=present" -H "Accept: application/json" \
+               --data-binary @examples/smoke_rows.csv http://localhost:8080/invocations | tee invoke.json
+          python -c "import json; d=json.load(open('invoke.json')); assert len(d['predictions'])==5, d"
+          curl -fsS http://localhost:8080/execution-parameters
+          docker logs "$cid" > serve.log; docker stop "$cid"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-contract-logs
+          path: |
+            sagemaker-byoc-deploy/train.log
+            sagemaker-byoc-deploy/serve.log
+            sagemaker-byoc-deploy/invoke.json

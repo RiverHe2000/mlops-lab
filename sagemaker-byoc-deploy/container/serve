@@ -1,0 +1,5 @@
+#!/bin/sh
+# SageMaker hosting entrypoint: `docker run <image> serve`.
+# Reads SAGEMAKER_BIND_TO_PORT / SAGEMAKER_MODEL_SERVER_WORKERS and starts the HTTP server.
+set -eu
+exec smdeploy-serve "$@"

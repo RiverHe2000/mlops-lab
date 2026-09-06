@@ -1,0 +1,15 @@
+# Baseline: regularised logistic regression on one-hot + scaled features.
+name: baseline_logreg
+data_path: data/german_credit.csv
+schema_path: data/schema.yaml
+split: {test_size: 0.25, seed: 42, stratify: true}
+cv: {folds: 5, seed: 42}
+model:
+  kind: logistic_regression
+  params: {C: 0.5, max_iter: 2000, class_weight: null}
+decision_threshold: cost_optimal   # or a float in (0, 1)
+tracking:
+  tracking_uri: sqlite:///mlruns/mlflow.db
+  experiment: credit-pd
+  registered_model: credit-pd
+tags: {owner: risk-modelling, use_case: retail_credit_pd}

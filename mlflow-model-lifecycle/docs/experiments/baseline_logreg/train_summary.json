@@ -1,0 +1,77 @@
+{
+  "run_id": "b70fffab762f464c82cada39369af9ee",
+  "model_uri": "models:/m-d7a948664a0c40f8b9ed3594c04e48d5",
+  "threshold": 0.13,
+  "metrics_test": {
+    "n": 250.0,
+    "positive_rate": 0.3,
+    "auc": 0.8023619047619047,
+    "gini": 0.6047238095238094,
+    "ks": 0.5333333333333333,
+    "brier": 0.1565420783477984,
+    "log_loss": 0.48058687759605895,
+    "ece": 0.058893241764150145,
+    "threshold": 0.13,
+    "expected_cost": 0.604,
+    "approval_rate": 0.288,
+    "recall": 0.8933333333333333,
+    "precision": 0.37640449438202245,
+    "bad_rate_among_approved": 0.1111111111111111
+  },
+  "test_ci": {
+    "auc": {
+      "estimate": 0.8023619047619047,
+      "lower": 0.7440299353538987,
+      "upper": 0.8563847376788553,
+      "level": 0.95,
+      "n_boot": 1000
+    },
+    "brier": {
+      "estimate": 0.1565420783477984,
+      "lower": 0.13142223871034142,
+      "upper": 0.1821724398671301,
+      "level": 0.95,
+      "n_boot": 1000
+    },
+    "ks": {
+      "estimate": 0.5333333333333333,
+      "lower": 0.4338496181508885,
+      "upper": 0.6546780782781506,
+      "level": 0.95,
+      "n_boot": 1000
+    }
+  },
+  "cv_mean": {
+    "auc": 0.7636825396825397,
+    "ks": 0.460952380952381,
+    "brier": 0.17260331887434127,
+    "log_loss": 0.5171633150608206,
+    "ece": 0.08242282557663318
+  },
+  "cv_std": {
+    "auc": 0.02165632703525407,
+    "ks": 0.03491486243775878,
+    "brier": 0.008127191153449082,
+    "log_loss": 0.016105251599922803,
+    "ece": 0.022220193757504027
+  },
+  "data_fingerprint": "df35f767300115b57a71d5e974c23c1b679067b2a4c93e21546479de03c14cb9",
+  "config_hash": "91f772690405c9b07849d0b81e5549adbe4b079b4c661732ebc1efff92f7be20",
+  "registered": {
+    "name": "credit-pd",
+    "version": 1,
+    "run_id": "b70fffab762f464c82cada39369af9ee",
+    "source": "models:/m-d7a948664a0c40f8b9ed3594c04e48d5",
+    "aliases": [
+      "challenger"
+    ],
+    "tags": {
+      "data.fingerprint": "df35f767300115b57a71d5e974c23c1b679067b2a4c93e21546479de03c14cb9",
+      "mlreg.config_hash": "91f772690405c9b07849d0b81e5549adbe4b079b4c661732ebc1efff92f7be20",
+      "mlreg.config_name": "baseline_logreg",
+      "decision.threshold": "0.1300",
+      "test.auc": "0.8024"
+    },
+    "uri": "models:/credit-pd/1"
+  }
+}

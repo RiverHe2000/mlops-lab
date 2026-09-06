@@ -1,0 +1,77 @@
+{
+  "run_id": "513809a75b834409b4b722606299f868",
+  "model_uri": "models:/m-a7fa7310347b48629ce9a513d3e59e7f",
+  "threshold": 0.25,
+  "metrics_test": {
+    "n": 250.0,
+    "positive_rate": 0.3,
+    "auc": 0.8048,
+    "gini": 0.6095999999999999,
+    "ks": 0.499047619047619,
+    "brier": 0.16316763795926192,
+    "log_loss": 0.4953076665124187,
+    "ece": 0.07495657301232445,
+    "threshold": 0.25,
+    "expected_cost": 0.56,
+    "approval_rate": 0.428,
+    "recall": 0.84,
+    "precision": 0.4405594405594406,
+    "bad_rate_among_approved": 0.11214953271028037
+  },
+  "test_ci": {
+    "auc": {
+      "estimate": 0.8048,
+      "lower": 0.7457566498411978,
+      "upper": 0.856711930253396,
+      "level": 0.95,
+      "n_boot": 1000
+    },
+    "brier": {
+      "estimate": 0.16316763795926192,
+      "lower": 0.1427622494446033,
+      "upper": 0.18437751007467226,
+      "level": 0.95,
+      "n_boot": 1000
+    },
+    "ks": {
+      "estimate": 0.499047619047619,
+      "lower": 0.41287887899790054,
+      "upper": 0.6302956745311554,
+      "level": 0.95,
+      "n_boot": 1000
+    }
+  },
+  "cv_mean": {
+    "auc": 0.7838730158730159,
+    "ks": 0.4603174603174603,
+    "brier": 0.1701132048507424,
+    "log_loss": 0.5110094185869027,
+    "ece": 0.06856201036456569
+  },
+  "cv_std": {
+    "auc": 0.013136294998883644,
+    "ks": 0.026408424562648167,
+    "brier": 0.00274610796233305,
+    "log_loss": 0.006864244218121071,
+    "ece": 0.0186865619738135
+  },
+  "data_fingerprint": "df35f767300115b57a71d5e974c23c1b679067b2a4c93e21546479de03c14cb9",
+  "config_hash": "ab70573cb76d3fcb23290eed9b04d13ce7d8ce2fff72f45dbc19f953350efa60",
+  "registered": {
+    "name": "credit-pd",
+    "version": 3,
+    "run_id": "513809a75b834409b4b722606299f868",
+    "source": "models:/m-a7fa7310347b48629ce9a513d3e59e7f",
+    "aliases": [
+      "challenger"
+    ],
+    "tags": {
+      "data.fingerprint": "df35f767300115b57a71d5e974c23c1b679067b2a4c93e21546479de03c14cb9",
+      "mlreg.config_hash": "ab70573cb76d3fcb23290eed9b04d13ce7d8ce2fff72f45dbc19f953350efa60",
+      "mlreg.config_name": "challenger_rf",
+      "decision.threshold": "0.2500",
+      "test.auc": "0.8048"
+    },
+    "uri": "models:/credit-pd/3"
+  }
+}

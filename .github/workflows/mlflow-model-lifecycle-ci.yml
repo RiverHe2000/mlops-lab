@@ -1,0 +1,149 @@
+name: CI · mlflow-model-lifecycle
+
+on:
+  push:
+    branches: [main]
+    paths: ["mlflow-model-lifecycle/**", ".github/workflows/mlflow-model-lifecycle-ci.yml"]
+  pull_request:
+    paths: ["mlflow-model-lifecycle/**", ".github/workflows/mlflow-model-lifecycle-ci.yml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+  MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR: "false"
+
+defaults:
+  run:
+    working-directory: mlflow-model-lifecycle
+
+jobs:
+  quality:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: mlflow-model-lifecycle/pyproject.toml
+
+      - name: Install project (dev extras)
+        run: pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type-check (mypy --strict)
+        run: mypy
+
+      - name: Test (pytest + coverage)
+        run: pytest --cov-report=xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: mlflow-model-lifecycle/coverage.xml
+          if-no-files-found: ignore
+
+  train-and-gate:
+    # The release path, end to end and deterministic: validate the data contract, train the
+    # baseline and a challenger into a file-backed MLflow store, run the promotion gate in dry-run
+    # mode and publish the model card as the job summary. The gate decision becomes a job output.
+    name: train → register → gate
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+    env:
+      MLREG_TRACKING_URI: sqlite:///${{ github.workspace }}/mlruns/mlflow.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: mlflow-model-lifecycle/pyproject.toml
+      - run: pip install -e .
+
+      - name: Validate data against the contract
+        run: mlreg validate --data data/german_credit.csv --schema data/schema.yaml
+
+      - name: Train + register baseline (becomes the first champion)
+        run: |
+          mlreg train --config configs/baseline_logreg.yaml --register --alias challenger --out runs/ci/baseline
+          mlreg promote --config configs/baseline_logreg.yaml --policy gates/promotion.yaml \
+            --candidate-version 1 --out runs/ci/gate_v1 --approved-by github-actions
+
+      - name: Train + register challenger
+        run: mlreg train --config configs/challenger_hgb.yaml --register --alias challenger --out runs/ci/challenger
+
+      - name: Promotion gate (dry run; exit 0 = PROMOTE, 2 = HOLD)
+        id: gate
+        run: |
+          set +e
+          mlreg promote --config configs/challenger_hgb.yaml --policy gates/promotion.yaml \
+            --candidate-version 2 --out runs/ci/gate_v2 --approved-by github-actions --dry-run
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "decision=PROMOTE" >> "$GITHUB_OUTPUT" ;;
+            2) echo "decision=HOLD" >> "$GITHUB_OUTPUT" ;;
+            *) echo "gate crashed with exit code $code"; exit "$code" ;;
+          esac
+
+      - name: Publish model card and gate report to the job summary
+        if: always()
+        run: |
+          { echo "## Gate decision: ${{ steps.gate.outputs.decision }}"; echo; cat runs/ci/gate_v2/gate_report.md; echo; cat runs/ci/gate_v2/model_card.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload run evidence (gate reports, model cards, MLflow store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-evidence
+          path: |
+            mlflow-model-lifecycle/runs/ci
+            mlflow-model-lifecycle/mlruns
+          retention-days: 14
+
+  promote:
+    # Only on main, only when the gate passed, and only after a human approves the
+    # `model-registry` environment in the repository settings (the four-eyes step).
+    name: promote challenger → @champion
+    needs: train-and-gate
+    if: github.ref == 'refs/heads/main' && needs.train-and-gate.outputs.decision == 'PROMOTE'
+    runs-on: ubuntu-latest
+    environment: model-registry
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: mlflow-evidence
+          path: mlflow-model-lifecycle
+      - name: Move the alias
+        # In a real deployment MLREG_TRACKING_URI is the team server (secret); here it is the
+        # store produced by the previous job, so the whole workflow is reproducible offline.
+        env:
+          MLREG_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || format('sqlite:///{0}/mlruns/mlflow.db', github.workspace) }}
+        run: |
+          mlreg promote --config configs/challenger_hgb.yaml --policy gates/promotion.yaml \
+            --candidate-version 2 --out runs/ci/promotion --approved-by "${{ github.actor }}"
+          mlreg serve-check --config configs/challenger_hgb.yaml --alias champion

@@ -1,0 +1,54 @@
+# Exporter + Prometheus (scrape + alert rules) + Grafana (provisioned dashboard).
+#
+#   make demo                                  # writes runs/demo/{baseline.json,window_*.jsonl,labels.jsonl}
+#   docker compose -f deploy/docker-compose.yml up --build
+#   curl -X POST localhost:9108/run -H 'content-type: application/json' \
+#        -d '{"capture_path": "/data/window_03.jsonl", "labels_path": "/data/labels.jsonl"}'
+#   open http://localhost:3000 (admin / admin) → dashboard "mlwatch · model monitoring"
+
+name: mlwatch
+
+services:
+  mlwatch:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: mlwatch/exporter:0.1.0
+    volumes:
+      - ../runs/demo:/data
+      - ../policies/default.yaml:/data/policy.yaml:ro
+    ports:
+      - "9108:9108"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - mlwatch
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  promdata:

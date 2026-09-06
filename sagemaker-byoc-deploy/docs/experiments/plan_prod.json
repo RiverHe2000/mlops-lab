@@ -1,0 +1,151 @@
+{
+  "create_training_job": {
+    "TrainingJobName": "credit-pd-manual",
+    "AlgorithmSpecification": {
+      "TrainingImage": "123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/credit-pd:abc1234",
+      "TrainingInputMode": "File",
+      "MetricDefinitions": [
+        {
+          "Name": "validation:auc",
+          "Regex": "validation:auc=([0-9.]+)"
+        },
+        {
+          "Name": "validation:log_loss",
+          "Regex": "validation:log_loss=([0-9.]+)"
+        },
+        {
+          "Name": "validation:brier",
+          "Regex": "validation:brier=([0-9.]+)"
+        },
+        {
+          "Name": "validation:accuracy",
+          "Regex": "validation:accuracy=([0-9.]+)"
+        },
+        {
+          "Name": "validation:precision",
+          "Regex": "validation:precision=([0-9.]+)"
+        },
+        {
+          "Name": "validation:recall",
+          "Regex": "validation:recall=([0-9.]+)"
+        }
+      ]
+    },
+    "RoleArn": "arn:aws:iam::123456789012:role/credit-pd-sagemaker-execution",
+    "InputDataConfig": [
+      {
+        "ChannelName": "train",
+        "DataSource": {
+          "S3DataSource": {
+            "S3DataType": "S3Prefix",
+            "S3Uri": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/data/train/",
+            "S3DataDistributionType": "FullyReplicated"
+          }
+        },
+        "ContentType": "text/csv",
+        "InputMode": "File"
+      },
+      {
+        "ChannelName": "validation",
+        "DataSource": {
+          "S3DataSource": {
+            "S3DataType": "S3Prefix",
+            "S3Uri": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/data/validation/",
+            "S3DataDistributionType": "FullyReplicated"
+          }
+        },
+        "ContentType": "text/csv",
+        "InputMode": "File"
+      }
+    ],
+    "OutputDataConfig": {
+      "S3OutputPath": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/training-output/"
+    },
+    "ResourceConfig": {
+      "InstanceType": "ml.m5.large",
+      "InstanceCount": 1,
+      "VolumeSizeInGB": 10
+    },
+    "StoppingCondition": {
+      "MaxRuntimeInSeconds": 1800,
+      "MaxWaitTimeInSeconds": 3600
+    },
+    "HyperParameters": {
+      "target": "default",
+      "positive_label": "1",
+      "id_columns": "application_id",
+      "model": "logistic_regression",
+      "C": "0.5",
+      "threshold": "0.3",
+      "seed": "42"
+    },
+    "EnableManagedSpotTraining": true,
+    "CheckpointConfig": {
+      "S3Uri": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/checkpoints/credit-pd-manual/"
+    },
+    "Environment": {
+      "TRAINING_JOB_NAME": "credit-pd-manual"
+    },
+    "Tags": [
+      {
+        "Key": "owner",
+        "Value": "risk-modelling"
+      },
+      {
+        "Key": "project",
+        "Value": "credit-pd"
+      }
+    ]
+  },
+  "stage": {
+    "stage": "production",
+    "endpoint": {
+      "endpoint_name": "credit-pd-prod",
+      "model_name_prefix": "credit-pd",
+      "role_arn": "arn:aws:iam::123456789012:role/credit-pd-sagemaker-execution",
+      "instance_type": "ml.m5.large",
+      "instance_count": 2,
+      "variant_name": "AllTraffic",
+      "environment": {
+        "SAGEMAKER_MODEL_SERVER_WORKERS": "2",
+        "SMDEPLOY_LOG_LEVEL": "INFO"
+      },
+      "data_capture": {
+        "s3_uri": "s3://credit-pd-artifacts-123456789012-ap-southeast-2/capture/production/",
+        "sampling_percent": 20
+      },
+      "tags": {
+        "project": "credit-pd"
+      },
+      "image_uri": "<from model package>",
+      "model_data_url": "s3://<from model package>"
+    },
+    "deployment_config": {
+      "BlueGreenUpdatePolicy": {
+        "TrafficRoutingConfiguration": {
+          "WaitIntervalInSeconds": 300,
+          "Type": "CANARY",
+          "CanarySize": {
+            "Type": "CAPACITY_PERCENT",
+            "Value": 10
+          }
+        },
+        "TerminationWaitInSeconds": 300,
+        "MaximumExecutionTimeoutInSeconds": 3600
+      }
+    },
+    "alarms": {
+      "error_5xx_threshold": 1.0,
+      "latency_p99_ms": 1000.0,
+      "period_s": 60,
+      "evaluation_periods": 2
+    },
+    "autoscaling": {
+      "min_capacity": 2,
+      "max_capacity": 6,
+      "target_invocations_per_instance": 60.0,
+      "scale_in_cooldown_s": 300,
+      "scale_out_cooldown_s": 60
+    }
+  }
+}

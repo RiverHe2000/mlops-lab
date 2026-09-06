@@ -1,0 +1,70 @@
+# Data contract for the German Credit PD dataset (decoded by scripts/prepare_data.py).
+# Every training run validates the frame against this file before touching a model; the
+# same schema builds the preprocessing pipeline and the MLflow model signature.
+name: german_credit
+version: "1.0"
+target: default
+positive_label: 1
+id_column: application_id
+columns:
+  - {name: application_id, kind: categorical, role: id, description: row identifier (zero-padded line number)}
+  - name: checking_status
+    kind: categorical
+    role: feature
+    categories: [lt_0, 0_to_200, ge_200_or_salary, none]
+  - {name: duration_months, kind: numeric, role: feature, min: 1, max: 120}
+  - name: credit_history
+    kind: categorical
+    role: feature
+    categories: [no_credits_all_paid, all_paid_this_bank, existing_paid_duly, past_delays, critical_or_other_credits]
+  - name: purpose
+    kind: categorical
+    role: feature
+    categories: [car_new, car_used, furniture_equipment, radio_tv, domestic_appliances, repairs, education, vacation, retraining, business, other]
+  - {name: credit_amount, kind: numeric, role: feature, min: 0, max: 100000}
+  - name: savings_status
+    kind: categorical
+    role: feature
+    categories: [lt_100, 100_to_500, 500_to_1000, ge_1000, unknown_or_none]
+  - name: employment_since
+    kind: categorical
+    role: feature
+    categories: [unemployed, lt_1y, 1_to_4y, 4_to_7y, ge_7y]
+  - {name: installment_rate_pct, kind: numeric, role: feature, min: 1, max: 4}
+  - name: personal_status_sex
+    kind: categorical
+    role: protected      # excluded from features, reported as a fairness slice
+    categories: [male_divorced_separated, female_divorced_separated_married, male_single, male_married_widowed, female_single]
+  - name: other_debtors
+    kind: categorical
+    role: feature
+    categories: [none, co_applicant, guarantor]
+  - {name: residence_since_years, kind: numeric, role: feature, min: 1, max: 4}
+  - name: property
+    kind: categorical
+    role: feature
+    categories: [real_estate, savings_agreement_or_life_insurance, car_or_other, unknown_or_none]
+  - {name: age_years, kind: numeric, role: feature, min: 18, max: 100}
+  - name: other_installment_plans
+    kind: categorical
+    role: feature
+    categories: [bank, stores, none]
+  - name: housing
+    kind: categorical
+    role: feature
+    categories: [rent, own, for_free]
+  - {name: existing_credits_count, kind: numeric, role: feature, min: 1, max: 10}
+  - name: job
+    kind: categorical
+    role: feature
+    categories: [unemployed_unskilled_non_resident, unskilled_resident, skilled_employee, management_or_self_employed]
+  - {name: dependents_count, kind: numeric, role: feature, min: 1, max: 10}
+  - name: telephone
+    kind: categorical
+    role: feature
+    categories: ["none", "yes"]
+  - name: foreign_worker
+    kind: categorical
+    role: protected      # excluded from features, reported as a fairness slice
+    categories: ["yes", "no"]
+  - {name: default, kind: numeric, role: target, min: 0, max: 1}

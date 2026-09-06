@@ -1,0 +1,8 @@
+{
+  "target": "default",
+  "model": "logistic_regression",
+  "C": "0.5",
+  "threshold": "0.3",
+  "id_columns": "application_id",
+  "validation_split": "0.2"
+}

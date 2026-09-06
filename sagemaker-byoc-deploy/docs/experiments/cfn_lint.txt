@@ -1,0 +1,3 @@
+
+$ cfn-lint infra/cloudformation/platform.yaml
+cfn-lint exit: 0

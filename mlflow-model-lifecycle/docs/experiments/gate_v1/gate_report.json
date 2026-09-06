@@ -1,0 +1,66 @@
+{
+  "decision": "PROMOTE",
+  "n_holdout": 250,
+  "checks": [
+    {
+      "name": "holdout_size",
+      "passed": true,
+      "value": 250.0,
+      "threshold": 200.0,
+      "detail": ""
+    },
+    {
+      "name": "auc_min",
+      "passed": true,
+      "value": 0.8023619047619047,
+      "threshold": 0.72,
+      "detail": ""
+    },
+    {
+      "name": "brier_max",
+      "passed": true,
+      "value": 0.1565420783477984,
+      "threshold": 0.2,
+      "detail": ""
+    },
+    {
+      "name": "ece_max",
+      "passed": true,
+      "value": 0.058893241764150145,
+      "threshold": 0.06,
+      "detail": ""
+    },
+    {
+      "name": "slice_auc_min[personal_status_sex]",
+      "passed": true,
+      "value": 0.7837415320479416,
+      "threshold": 0.6,
+      "detail": "worst group: male_single"
+    },
+    {
+      "name": "slice_auc_min[foreign_worker]",
+      "passed": true,
+      "value": 0.7972972972972973,
+      "threshold": 0.6,
+      "detail": "worst group: yes"
+    }
+  ],
+  "challenger": {
+    "n": 250.0,
+    "positive_rate": 0.3,
+    "auc": 0.8023619047619047,
+    "gini": 0.6047238095238094,
+    "ks": 0.5333333333333333,
+    "brier": 0.1565420783477984,
+    "log_loss": 0.48058687759605895,
+    "ece": 0.058893241764150145,
+    "threshold": 0.13,
+    "expected_cost": 0.604,
+    "approval_rate": 0.288,
+    "recall": 0.8933333333333333,
+    "precision": 0.37640449438202245,
+    "bad_rate_among_approved": 0.1111111111111111
+  },
+  "champion": null,
+  "deltas": {}
+}

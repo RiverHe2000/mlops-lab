@@ -1,0 +1,95 @@
+# Team MLflow stack: tracking server + Postgres backend store + MinIO (S3-compatible) artifact store.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#   MLREG_TRACKING_URI=http://localhost:5000 mlreg train --config configs/baseline_logreg.yaml
+#
+# The server runs with --serve-artifacts, so clients only need the tracking URI: artefact
+# uploads/downloads are proxied through the server and the S3 credentials never leave it.
+# Clients outside this network must keep proxying: with an S3 store the server advertises
+# presigned multipart downloads whose URLs point at http://minio:9000. `mlreg` therefore defaults
+# MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false for HTTP servers; set it yourself with plain mlflow.
+# Backend store (runs, params, metrics, registry) and artifact store (files) are separate on
+# purpose: the former needs transactions, the latter needs cheap bulk storage.
+
+name: mlreg
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mlflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlflow}
+      POSTGRES_DB: ${POSTGRES_DB:-mlflow}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mlflow} -d ${POSTGRES_DB:-mlflow}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin} &&
+      mc mb --ignore-existing local/${MLFLOW_BUCKET:-mlflow-artifacts} &&
+      echo bucket-ready"
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    image: mlreg/mlflow-server:3.16.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow}
+      MLFLOW_ARTIFACTS_DESTINATION: s3://${MLFLOW_BUCKET:-mlflow-artifacts}
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri ${MLFLOW_BACKEND_STORE_URI:-postgresql+psycopg2://mlflow:mlflow@postgres:5432/mlflow}
+      --artifacts-destination ${MLFLOW_ARTIFACTS_DESTINATION:-s3://mlflow-artifacts}
+      --serve-artifacts
+      --gunicorn-opts "--workers 2 --timeout 120"
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  miniodata:
