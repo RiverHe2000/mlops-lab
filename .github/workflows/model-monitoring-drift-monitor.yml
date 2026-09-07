@@ -8,7 +8,7 @@ name: Scheduled model monitor · model-monitoring-drift
 
 on:
   schedule:
-    - cron: "15 2 * * *"          # 02:15 UTC daily
+    - cron: "15 2 * * 1"          # 02:15 UTC every Monday (daily in production; weekly keeps the demo issue quiet)
   workflow_dispatch:
     inputs:
       scenario:
@@ -77,6 +77,8 @@ jobs:
         run: |
           title="Model monitor: action required ($(date -u +%F))"
           body_file=runs/report/report.md
+          # The label is part of the contract; create it on first use so a fresh repository works.
+          gh label create model-monitor --description "Opened by the scheduled model monitor" --color D93F0B --force
           existing=$(gh issue list --label model-monitor --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body-file "$body_file"
