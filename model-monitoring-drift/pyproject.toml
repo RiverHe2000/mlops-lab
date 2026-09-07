@@ -9,7 +9,7 @@ description = "Production model monitoring for a credit-risk classifier: data, p
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "River He" }]
+authors = [{ name = "Chuan He" }]
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",

@@ -9,7 +9,7 @@ description = "Credit-risk PD model lifecycle on MLflow: data contract, tracked 
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "River He" }]
+authors = [{ name = "Chuan He" }]
 dependencies = [
   "mlflow>=3.1",
   "scikit-learn>=1.5",

@@ -9,7 +9,7 @@ description = "Bring-your-own-container ML on AWS SageMaker: training and infere
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "River He" }]
+authors = [{ name = "Chuan He" }]
 dependencies = [
   "scikit-learn>=1.5",
   "pandas>=2.2",
