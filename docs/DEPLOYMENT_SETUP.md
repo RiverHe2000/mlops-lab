@@ -13,7 +13,7 @@ below. This file records what the pipeline needs before it can actually run.
 | Item | Value | Why |
 |---|---|---|
 | Environment `staging` | no protection rules | staging deploys automatically once the image and training job succeed |
-| Environment `production` | **required reviewer** (`ChuanHe-PhD`), protected branches only | the four-eyes gate: the `approve` job waits here, and nothing reaches production without a human |
+| Environment `production` | **required reviewer** (`RiverHe2000`), protected branches only | the four-eyes gate: the `approve` job waits here, and nothing reaches production without a human |
 | Variable `AWS_REGION` | `ap-southeast-2` | Sydney |
 | Variable `PROJECT_NAME` | `credit-pd` | prefix for the model-package group, endpoint and image tag |
 
@@ -34,7 +34,7 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
       ProjectName=credit-pd \
-      GitHubOrg=ChuanHe-PhD \
+      GitHubOrg=RiverHe2000 \
       GitHubRepo=mlops-lab \
       GitHubBranch=main
 
@@ -46,9 +46,9 @@ Then map three of the stack outputs onto the repository's settings:
 
 | Stack output | Set as | Command |
 |---|---|---|
-| `GitHubDeployRoleArn` | secret `AWS_DEPLOY_ROLE_ARN` | `gh secret set AWS_DEPLOY_ROLE_ARN --repo ChuanHe-PhD/mlops-lab --body "<value>"` |
-| `ArtifactBucketName` | variable `ARTIFACT_BUCKET` | `gh variable set ARTIFACT_BUCKET --repo ChuanHe-PhD/mlops-lab --body "<value>"` |
-| `SageMakerExecutionRoleArn` | variable `SAGEMAKER_EXECUTION_ROLE_ARN` | `gh variable set SAGEMAKER_EXECUTION_ROLE_ARN --repo ChuanHe-PhD/mlops-lab --body "<value>"` |
+| `GitHubDeployRoleArn` | secret `AWS_DEPLOY_ROLE_ARN` | `gh secret set AWS_DEPLOY_ROLE_ARN --repo RiverHe2000/mlops-lab --body "<value>"` |
+| `ArtifactBucketName` | variable `ARTIFACT_BUCKET` | `gh variable set ARTIFACT_BUCKET --repo RiverHe2000/mlops-lab --body "<value>"` |
+| `SageMakerExecutionRoleArn` | variable `SAGEMAKER_EXECUTION_ROLE_ARN` | `gh variable set SAGEMAKER_EXECUTION_ROLE_ARN --repo RiverHe2000/mlops-lab --body "<value>"` |
 
 (`ImageRepositoryUri` and `ModelPackageGroupName` are derived from `PROJECT_NAME` by the
 CLI, so they do not need to be stored.)
@@ -56,7 +56,7 @@ CLI, so they do not need to be stored.)
 ## Running it
 
 ```bash
-gh workflow run sagemaker-byoc-deploy-cd.yml --repo ChuanHe-PhD/mlops-lab
+gh workflow run sagemaker-byoc-deploy-cd.yml --repo RiverHe2000/mlops-lab
 ```
 
 or push a `v*` tag. The run stops at the `approve` job; GitHub notifies the reviewer, and

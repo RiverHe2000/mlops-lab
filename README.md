@@ -1,8 +1,8 @@
 # mlops-lab
 
-[![mlflow-model-lifecycle](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/mlflow-model-lifecycle-ci.yml/badge.svg)](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/mlflow-model-lifecycle-ci.yml)
-[![sagemaker-byoc-deploy](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml/badge.svg)](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml)
-[![model-monitoring-drift](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml/badge.svg)](https://github.com/ChuanHe-PhD/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml)
+[![mlflow-model-lifecycle](https://github.com/RiverHe2000/mlops-lab/actions/workflows/mlflow-model-lifecycle-ci.yml/badge.svg)](https://github.com/RiverHe2000/mlops-lab/actions/workflows/mlflow-model-lifecycle-ci.yml)
+[![sagemaker-byoc-deploy](https://github.com/RiverHe2000/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml/badge.svg)](https://github.com/RiverHe2000/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml)
+[![model-monitoring-drift](https://github.com/RiverHe2000/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml/badge.svg)](https://github.com/RiverHe2000/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml)
 
 One credit PD model followed through its whole operational life — **track it, ship it, watch
 it**: experiment tracking and a registry with a statistical promotion gate, a
@@ -15,8 +15,8 @@ and production drift monitoring with a calibrated alert policy that triggers ret
 | 02 | [sagemaker-byoc-deploy](sagemaker-byoc-deploy/) — `smdeploy` | One image, two entry points (`train`/`serve`) implementing SageMaker's container contracts; ECR, Spot training with checkpoints, model-package approval, **content-addressed endpoint configs + canary blue/green + CloudWatch alarm auto-rollback**, autoscaling, smoke tests; CloudFormation with GitHub OIDC least-privilege roles; CD with a human approval gate | Hosted latency p50 **8 ms** (1 row) / 11 ms (1 000 rows ≈ 89 k rows/s); cfn-lint clean; image built and run for real (770 MB, non-root): in-container `train` metrics bit-identical to the simulation, `serve` passes ping / execution-parameters / CSV·JSON·JSONLines / 415 / 406; **70 tests, 95.4 % coverage** |
 | 03 | [model-monitoring-drift](model-monitoring-drift/) — `mlwatch` | PSI/KS/chi-square/JS/Wasserstein from their definitions + Benjamini-Hochberg correction + PSI bootstrap intervals; data-quality constraints; delayed-label performance; **alert policy** (drift *and* test agreement, consecutive-window escalation, INVESTIGATE/RETRAIN); a simulator with ground truth that measures the monitor itself; Prometheus exporter + rules + Grafana | **5 % false-alarm rate** on stationary traffic; **100 % detection** of 1σ covariate shift, localised to the right feature; concept drift caught only by the performance check (AUC −0.11/−0.23); compose stack run for real: `RetrainRecommended` fires, Grafana auto-provisions; **34 tests, 98.3 % coverage** |
 
-Companion repositories: [`llm-engineering-lab`](https://github.com/ChuanHe-PhD/llm-engineering-lab)
-(Transformer internals, LoRA, an inference server) and [`genai-platform-lab`](https://github.com/ChuanHe-PhD/genai-platform-lab)
+Companion repositories: [`llm-engineering-lab`](https://github.com/RiverHe2000/llm-engineering-lab)
+(Transformer internals, LoRA, an inference server) and [`genai-platform-lab`](https://github.com/RiverHe2000/genai-platform-lab)
 (RAG, agents with guardrails, an LLM gateway).
 
 ---
