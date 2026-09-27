@@ -16,6 +16,7 @@ from . import metrics as M
 from . import tracking as T
 from .config import CVConfig, DataSchema, TrainingConfig
 from .data import Dataset, load_frame, make_split
+from .holdout import ARTIFACT, TAG, SplitManifest
 from .models import build_pipeline, global_importance, predict_pd
 from .plots import plot_calibration, plot_roc, plot_score_distribution
 from .pyfunc import PDScorer, log_pd_model
@@ -122,6 +123,9 @@ def train_on(
 ) -> TrainResult:
     T.configure(cfg.tracking)
     tags = T.lineage_tags(cfg, ds.fingerprint, schema.fingerprint())
+    manifest = SplitManifest.from_dataset(ds)
+    manifest.check(manifest)
+    tags[TAG] = manifest.fingerprint()
     pipeline = build_pipeline(schema, cfg.model, cfg.split.seed)
 
     with T.start_run(cfg.name, tags) as run:
@@ -168,6 +172,7 @@ def train_on(
         # artefacts: the evidence pack a reviewer needs
         T.log_json(cfg.model_dump(mode="json"), "config.json")
         T.log_json(schema.model_dump(mode="json"), "schema.json")
+        T.log_json(manifest.model_dump(mode="json"), ARTIFACT)
         T.log_json({"metrics": summary, "ci": cis}, "evaluation/holdout.json")
         T.log_frame(cv_table, "cv_folds.csv")
         T.log_frame(M.calibration_table(ds.y_test, p_test), "evaluation/calibration.csv")

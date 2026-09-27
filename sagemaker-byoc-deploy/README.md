@@ -189,7 +189,9 @@ smdeploy deploy --stage configs/endpoint.prod.yaml --smoke-csv examples/smoke_ro
 
 ## Related projects
 
-- [`mlflow-model-lifecycle`](../mlflow-model-lifecycle) — where the `@champion` model comes from:
-  MLflow tracking, registry aliases and a statistically gated promotion.
-- [`model-monitoring-drift`](../model-monitoring-drift) — consumes the endpoint's data capture:
-  PSI/KS/chi-square drift, delayed-label performance, a retrain policy and a Prometheus exporter.
+- [`mlflow-model-lifecycle`](../mlflow-model-lifecycle) — a companion with tracking, registry
+  aliases and statistical promotion. Its German Credit model is separate from this project's
+  synthetic training example; an export adapter is needed to deploy the same artefact here.
+- [`model-monitoring-drift`](../model-monitoring-drift) — drift/performance checks, a retraining
+  policy and an exporter. A capture-normalisation adapter is still needed; its current demo
+  consumes simulated records rather than this endpoint's raw SageMaker capture.

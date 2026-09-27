@@ -16,7 +16,8 @@ from . import registry as R
 from . import tracking as T
 from .config import DataSchema, TrainingConfig
 from .data import Dataset, load_frame, make_split
-from .gate import GateResult, PromotionPolicy, evaluate_gate
+from .gate import Check, GateResult, PromotionPolicy, evaluate_gate
+from .holdout import HoldoutMismatchError, SplitManifest, verify_run_holdout
 from .model_card import render_model_card
 from .pyfunc import score_with
 from .schema import validate_frame
@@ -97,6 +98,16 @@ def _holdout(cfg: TrainingConfig, schema: DataSchema) -> Dataset:
 def _score_versions(
     cfg: TrainingConfig, ds: Dataset, versions: list[int]
 ) -> dict[int, pd.DataFrame]:
+    manifest = SplitManifest.from_dataset(ds)
+    manifest.check(manifest)
+    # Validate every arm before loading any model; a valid challenger cannot legitimise a
+    # champion trained on the current holdout (or vice versa).
+    for version in versions:
+        registered = R.get_version(cfg.tracking.registered_model, version)
+        try:
+            verify_run_holdout(registered.run_id, manifest)
+        except HoldoutMismatchError as exc:
+            raise HoldoutMismatchError(f"v{version}: {exc}") from exc
     return {
         v: score_with(R.load_version(cfg.tracking.registered_model, v), ds.X_test) for v in versions
     }
@@ -127,7 +138,21 @@ def cmd_promote(args: argparse.Namespace) -> int:
         return EXIT_OK
     ds = _holdout(cfg, schema)
     versions = [candidate.version] + ([champion.version] if champion else [])
-    scores = _score_versions(cfg, ds, versions)
+    try:
+        scores = _score_versions(cfg, ds, versions)
+    except HoldoutMismatchError as exc:
+        blocked = GateResult(
+            decision="HOLD",
+            checks=[Check("holdout_identity", False, None, None, str(exc))],
+            challenger={},
+            champion=None,
+            n_holdout=ds.n_test,
+        )
+        out = Path(args.out) if args.out else None
+        _write(out, "gate_report.json", json.dumps(blocked.to_dict(), indent=2))
+        _write(out, "gate_report.md", blocked.to_markdown())
+        print(blocked.to_markdown())
+        return EXIT_HOLD
     threshold = _threshold_for(candidate)
     p_chal = scores[candidate.version]["pd"].to_numpy()
     p_champ = scores[champion.version]["pd"].to_numpy() if champion else None
@@ -369,7 +394,11 @@ def _harden_console_encoding() -> None:
 def main(argv: list[str] | None = None) -> int:
     _harden_console_encoding()
     args = build_parser().parse_args(argv)
-    code: int = args.func(args)
+    try:
+        code: int = args.func(args)
+    except HoldoutMismatchError as exc:
+        print(f"HOLD: {exc}", file=sys.stderr)
+        return EXIT_HOLD
     return code
 
 

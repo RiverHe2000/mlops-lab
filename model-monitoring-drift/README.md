@@ -11,18 +11,19 @@ consecutive-window escalation so a single odd batch never triggers a retrain. A 
 with a known ground truth measures the monitor itself — **detection power and false-alarm
 rate per scenario** — and the same code ships as a batch job with exit codes, a Prometheus
 exporter with alert rules and a Grafana dashboard, and a scheduled GitHub Actions workflow
-that opens an issue or dispatches retraining.
+that opens an issue. The scheduled simulation reports only; an explicit manual opt-in can
+dispatch the configured training workflow, with production deployment disabled.
 
 | | |
 |---|---|
-| Quality gates | `ruff`, `mypy --strict`, **34 tests** (offline, ≈ 5 s, incl. Hypothesis properties), **98 % branch coverage** |
+| Quality gates | `ruff`, `mypy --strict`, offline CPU tests (including Hypothesis properties) with a branch-coverage gate; current counts in CI |
 | Detectors | numeric: PSI (+95 % bootstrap CI), KS, JS, Wasserstein/σ · categorical: PSI, two-sample χ², unseen share · score: PSI, JS, decline-rate change · quality: missing, unseen, range, type, duplicates, missing column · performance: AUC, KS, Brier, log loss, ECE vs baseline with `min_labels` |
 | Policy | PSI **and** BH-adjusted test must agree; WARN → CRITICAL after 2 consecutive windows; RETRAIN on performance CRITICAL or sustained data/prediction CRITICAL; thin windows suppressed |
 | Headline | With the shipped policy on 1 000-row windows: **5 % false alarms** on stationary traffic, **100 % detection of a 1σ covariate shift attributed to the right feature**, concept drift caught only by the performance check (AUC −0.11 / −0.23), a prior shift caught through calibration (Brier), a serving bug (scores × 0.7) caught as prediction drift with inputs unchanged. Full tables in [docs/RESULTS.md](docs/RESULTS.md) |
 
 Companion projects: [`mlflow-model-lifecycle`](../mlflow-model-lifecycle) (where the model and its
-promotion gate come from) and [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) (the endpoint
-whose data capture this monitors). Together: *track, ship, watch*.
+promotion gate come from) and [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) (a deployment companion; normalising
+its data capture into this monitor's schema remains integration work). Together: *track, ship, watch*.
 
 ---
 
@@ -159,5 +160,9 @@ make stack                                            # Prometheus (:9090) + Gra
 
 - [`mlflow-model-lifecycle`](../mlflow-model-lifecycle) — the champion model, its baseline
   metrics and the promotion gate whose thresholds this policy mirrors.
-- [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) — the endpoint whose `DataCaptureConfig`
-  JSONL is the input here; its CD workflow is what `monitor.yml` dispatches on RETRAIN.
+- [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) — its capture requires a normalisation
+  adapter into `CaptureRecord`; the current demo uses simulated records. The monitor defaults
+  to recommending RETRAIN without dispatch. For an explicitly enabled manual run,
+  `TRAINING_WORKFLOW` defaults to `sagemaker-byoc-deploy-cd.yml` and `TRAINING_REPO` defaults to
+  this repository. The workflow must accept `deploy_production=false`; dispatch errors fail
+  visibly. Training/staging can incur AWS costs, so account setup is a separate prerequisite.

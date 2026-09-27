@@ -62,6 +62,15 @@ gh workflow run sagemaker-byoc-deploy-cd.yml --repo RiverHe2000/mlops-lab
 or push a `v*` tag. The run stops at the `approve` job; GitHub notifies the reviewer, and
 `deploy-production` starts only after approval.
 
+## Optional monitor dispatch
+
+The scheduled monitor uses synthetic traffic and never dispatches training automatically.
+Its manual `dispatch_retraining` input defaults to false. Enabling it on a RETRAIN result
+calls `TRAINING_WORKFLOW` (default `sagemaker-byoc-deploy-cd.yml`) in `TRAINING_REPO` (default
+this repository), passing `deploy_production=false`. Custom workflows must accept that input.
+Dispatch failures fail the monitor job rather than being hidden. This opt-in still runs
+training and staging, so configure the account and review costs first.
+
 ## Afterwards — this matters, endpoints bill per hour
 
 The pipeline does **not** delete the endpoints it creates; a staging endpoint left running

@@ -22,6 +22,7 @@ class Dataset:
     y_test: np.ndarray
     protected_train: pd.DataFrame
     protected_test: pd.DataFrame
+    ids_train: pd.Series
     ids_test: pd.Series
     fingerprint: str
     n_total: int
@@ -70,6 +71,7 @@ def make_split(df: pd.DataFrame, schema: DataSchema, split: SplitConfig) -> Data
         y_test=y[test_idx],
         protected_train=tr[protected].reset_index(drop=True),
         protected_test=te[protected].reset_index(drop=True),
+        ids_train=tr[schema.id_column].reset_index(drop=True),
         ids_test=te[schema.id_column].reset_index(drop=True),
         fingerprint=data_fingerprint(df),
         n_total=len(df),

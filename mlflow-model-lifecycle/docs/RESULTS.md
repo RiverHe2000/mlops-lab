@@ -1,5 +1,10 @@
 # Results
 
+These committed metrics describe the original experiment, before explicit train/holdout
+membership manifests were added. They have not been recomputed or retroactively certified
+by the new guard. New training writes split evidence; new evaluations reject older registry
+versions that lack it, even if their whole-CSV fingerprint matches.
+
 Produced by `make results` (`scripts/run_experiments.sh`) on 2026-09-06. Raw outputs, gate
 reports and model cards are under [`experiments/`](experiments/); the MLflow store it created is
 `mlruns/` (not committed, regenerable).

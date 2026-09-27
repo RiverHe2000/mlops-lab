@@ -4,16 +4,17 @@
 [![sagemaker-byoc-deploy](https://github.com/RiverHe2000/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml/badge.svg)](https://github.com/RiverHe2000/mlops-lab/actions/workflows/sagemaker-byoc-deploy-ci.yml)
 [![model-monitoring-drift](https://github.com/RiverHe2000/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml/badge.svg)](https://github.com/RiverHe2000/mlops-lab/actions/workflows/model-monitoring-drift-ci.yml)
 
-One credit PD model followed through its whole operational life — **track it, ship it, watch
-it**: experiment tracking and a registry with a statistical promotion gate, a
-bring-your-own-container SageMaker deployment with blue/green rollout and automatic rollback,
-and production drift monitoring with a calibrated alert policy that triggers retraining.
+Three independently runnable credit-model operations demonstrations — **track it, ship it,
+watch it**: a statistically gated MLflow registry, a SageMaker-compatible container and
+deployment workflow, and drift monitoring with a retraining recommendation. Docker components
+have local run evidence; AWS deployment and a shared artefact flowing through all three
+remain integration work.
 
 | # | Project | What it demonstrates | Headline result |
 |---|---|---|---|
-| 01 | [mlflow-model-lifecycle](mlflow-model-lifecycle/) — `mlreg` | Data contract → MLflow 3 tracking (lineage tags, nested CV runs) → pyfunc packaging with signature enforcement → registry aliases (champion/challenger/previous) → **paired-bootstrap non-inferiority gate** + calibration + score PSI + protected-attribute slices → automatic model card; Postgres + MinIO tracking server | German Credit: logistic-regression baseline AUC **0.802 [0.744, 0.856]** becomes champion; HGB challenger **HOLD** (ΔAUC −0.009 [−0.042, +0.025]); random forest HOLD (ECE 0.075, score PSI 0.74) — the gate held two challengers a point estimate would have promoted; **83 tests, 97.7 % coverage** |
-| 02 | [sagemaker-byoc-deploy](sagemaker-byoc-deploy/) — `smdeploy` | One image, two entry points (`train`/`serve`) implementing SageMaker's container contracts; ECR, Spot training with checkpoints, model-package approval, **content-addressed endpoint configs + canary blue/green + CloudWatch alarm auto-rollback**, autoscaling, smoke tests; CloudFormation with GitHub OIDC least-privilege roles; CD with a human approval gate | Hosted latency p50 **8 ms** (1 row) / 11 ms (1 000 rows ≈ 89 k rows/s); cfn-lint clean; image built and run for real (770 MB, non-root): in-container `train` metrics bit-identical to the simulation, `serve` passes ping / execution-parameters / CSV·JSON·JSONLines / 415 / 406; **70 tests, 95.4 % coverage** |
-| 03 | [model-monitoring-drift](model-monitoring-drift/) — `mlwatch` | PSI/KS/chi-square/JS/Wasserstein from their definitions + Benjamini-Hochberg correction + PSI bootstrap intervals; data-quality constraints; delayed-label performance; **alert policy** (drift *and* test agreement, consecutive-window escalation, INVESTIGATE/RETRAIN); a simulator with ground truth that measures the monitor itself; Prometheus exporter + rules + Grafana | **5 % false-alarm rate** on stationary traffic; **100 % detection** of 1σ covariate shift, localised to the right feature; concept drift caught only by the performance check (AUC −0.11/−0.23); compose stack run for real: `RetrainRecommended` fires, Grafana auto-provisions; **34 tests, 98.3 % coverage** |
+| 01 | [mlflow-model-lifecycle](mlflow-model-lifecycle/) | Data contracts, held-out evaluation, registry aliases and promotion | German Credit baseline AUC **0.802 [0.744, 0.856]**; both challengers **HOLD**. New evaluations verify the training run’s actual train/holdout membership before scoring. [Evidence](mlflow-model-lifecycle/docs/RESULTS.md) |
+| 02 | [sagemaker-byoc-deploy](sagemaker-byoc-deploy/) | Container contracts, canary configuration, rollback and OIDC workflow | Local container train/serve tested; **8 ms** p50 is in-process latency. AWS calls are validated with moto/Stubber; no cloud deployment result is claimed. [Evidence](sagemaker-byoc-deploy/docs/RESULTS.md) |
+| 03 | [model-monitoring-drift](model-monitoring-drift/) | Drift/performance checks and a calibrated alert policy | Simulation: **1/20** stationary windows flagged; **20/20** one-sigma shifts detected. Local Prometheus/Grafana exercised; scheduled demo reports only, retraining dispatch requires manual opt-in. [Evidence](model-monitoring-drift/docs/RESULTS.md) |
 
 Companion repositories: [`llm-engineering-lab`](https://github.com/RiverHe2000/llm-engineering-lab)
 (Transformer internals, LoRA, an inference server) and [`genai-platform-lab`](https://github.com/RiverHe2000/genai-platform-lab)
@@ -23,8 +24,10 @@ Companion repositories: [`llm-engineering-lab`](https://github.com/RiverHe2000/l
 
 ## The through-line
 
-The same model, the same artefact, three stages — which is exactly how the interview
-questions come:
+The three stages address these operational questions. They currently use separate example
+models/data: German Credit in MLflow, synthetic credit rows in BYOC, and a frozen synthetic
+scorer in the monitor. A shared artefact adapter and SageMaker capture normalisation are
+needed before claiming a single integrated end-to-end model lifecycle:
 
 1. **"How do you manage experiments and model versions?"** (`mlreg`) — a contract on the
    data, lineage on every run, a registry alias that means something, and a promotion
@@ -38,7 +41,8 @@ questions come:
 3. **"How do you know when it breaks?"** (`mlwatch`) — statistical drift tests with multiple
    testing correction, a policy calibrated against a simulator with known ground truth (so
    the false-alarm rate is a measured number, not a hope), and a scheduled workflow that
-   opens an issue and can dispatch retraining.
+   opens an issue. A manually enabled dispatch calls the configured training workflow and
+   fails visibly if dispatch fails; the scheduled simulation never starts AWS training.
 
 Deliberately built on a classic tabular model rather than an LLM: it keeps the focus on the
 platform, and it maps directly onto bank model-risk language (SR 11-7, APRA CPG 235).
@@ -51,13 +55,13 @@ platform, and it maps directly onto bank model-risk language (SR 11-7, APRA CPG 
 |---|---|
 | Lint + format | `ruff` with a broad rule set |
 | Types | `mypy --strict` on `src/` **and** `tests/` (`boto3-stubs` for the AWS surface) |
-| Tests | `pytest`, **187 tests**, branch-coverage gates ≥ 95 %; AWS is exercised offline with `moto` and `botocore` `Stubber`, so no account is needed to run the suite |
+| Tests | `pytest` with per-project branch-coverage gates (current counts in the linked CI runs); AWS is exercised offline with `moto` and `botocore` `Stubber`, so no account is needed to run the suite |
 | Reproducibility | seeded data generation, deterministic gate arithmetic, evidence bundles per run |
 | CI | one path-filtered workflow per project; the MLflow CI trains, registers and runs the gate as a dry run before a human approves the alias move; the SageMaker CI builds the image and exercises `train`/`serve` inside it |
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e "mlflow-model-lifecycle[dev]"     # and the other two
+make install                                      # install all three projects and dev extras
 make all                                          # ruff + mypy + pytest for all three
 make PROJECT=model-monitoring-drift test
 ```

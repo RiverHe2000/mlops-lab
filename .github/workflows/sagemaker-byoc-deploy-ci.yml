@@ -1,6 +1,7 @@
 name: CI · sagemaker-byoc-deploy
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths: ["sagemaker-byoc-deploy/**", ".github/workflows/sagemaker-byoc-deploy-ci.yml"]

@@ -1,6 +1,7 @@
 name: CI · model-monitoring-drift
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths: ["model-monitoring-drift/**", ".github/workflows/model-monitoring-drift-ci.yml"]

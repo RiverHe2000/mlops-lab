@@ -1,6 +1,7 @@
 name: CI · mlflow-model-lifecycle
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths: ["mlflow-model-lifecycle/**", ".github/workflows/mlflow-model-lifecycle-ci.yml"]

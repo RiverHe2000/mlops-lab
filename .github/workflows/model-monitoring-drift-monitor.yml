@@ -17,6 +17,10 @@ on:
       magnitude:
         description: Drift magnitude
         default: "1.0"
+      dispatch_retraining:
+        description: Dispatch the configured training workflow (may create billable AWS resources)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -87,10 +91,16 @@ jobs:
           fi
 
       - name: Trigger retraining pipeline
-        if: steps.run.outputs.code == '3'
+        if: steps.run.outputs.code == '3' && inputs.dispatch_retraining
         env:
           GH_TOKEN: ${{ github.token }}
-        # In the companion repository this is the CD workflow that trains, registers and
-        # deploys a new candidate; the monitor never retrains in place.
+          TRAINING_REPO: ${{ vars.TRAINING_REPO || github.repository }}
+          TRAINING_WORKFLOW: ${{ vars.TRAINING_WORKFLOW || 'sagemaker-byoc-deploy-cd.yml' }}
+        # The scheduled simulation only reports. Manual opt-in runs training and staging,
+        # with production explicitly disabled; a dispatch error must fail this job.
         run: |
-          gh workflow run cd.yml --repo "${{ vars.TRAINING_REPO || github.repository }}" || echo "training workflow dispatch not configured"
+          gh workflow run "$TRAINING_WORKFLOW" --repo "$TRAINING_REPO" -f deploy_production=false
+
+      - name: Record retraining recommendation without dispatch
+        if: steps.run.outputs.code == '3' && !inputs.dispatch_retraining
+        run: echo "RETRAIN recommended. Dispatch is disabled for this simulation; use the manual opt-in after configuring AWS and reviewing costs." >> "$GITHUB_STEP_SUMMARY"

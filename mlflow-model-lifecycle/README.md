@@ -9,7 +9,7 @@ calibration holds and its decisions are stable; and the decision is the CI exit 
 
 | | |
 |---|---|
-| Quality gates | `ruff`, `mypy --strict`, **74 tests** (offline, CPU, ≈ 40 s), **98 % branch coverage** |
+| Quality gates | `ruff`, `mypy --strict`, offline CPU tests with a branch-coverage gate; current counts in CI |
 | Stack | MLflow 3.16 (tracking + registry; SQLite locally, Postgres + MinIO via `deploy/docker-compose.yml`), scikit-learn, pydantic, GitHub Actions with an environment-gated promotion job |
 | Data | UCI German Credit, 1 000 applications, 30 % default rate, decoded and contract-validated ([data/README.md](data/README.md)) |
 | Headline | Baseline logistic regression **AUC 0.802 [0.744, 0.856]** on the 250-row holdout is promoted to `@champion`. Both challengers are **held**: gradient boosting because non-inferiority cannot be shown at n = 250 (ΔAUC −0.009 [−0.042, +0.025]), random forest because calibration (ECE 0.075) and score stability (PSI 0.74) fail. Full tables in [docs/RESULTS.md](docs/RESULTS.md) |
@@ -48,7 +48,7 @@ SageMaker container with blue/green rollout) and [`model-monitoring-drift`](../m
 | Tracking | `tracking.py`, `train.py` | Lineage tags (`data.fingerprint`, `mlreg.config_hash`, `git.sha`, schema fingerprint), flat params, CV as nested runs, an evidence pack of artefacts (`evaluation/*.csv`, `plots/*.png`, `config.json`, `schema.json`) |
 | Packaging | `pyfunc.py`, `models.py` | `PDScorer` pyfunc returns `pd`, `decision`, `reason_codes`; the threshold is a signature *parameter* so callers override it per request; reason codes are exact logit decompositions for linear models; the package's own code is bundled with `code_paths` so the artefact loads anywhere |
 | Registry | `registry.py` | Aliases (`@champion`, `@challenger`, `@previous`) instead of deprecated stages; promotion stamps `promoted_by`, `promoted_utc` and the gate report on the version, and retires the displaced version with a tag |
-| Gate | `gate.py`, `gates/promotion.yaml` | Policy as YAML; both models re-scored from the registry on the current holdout, so the packaged artefact is what gets judged; `same_data_snapshot` blocks paired comparisons when either model was trained on a different data fingerprint |
+| Gate | `gate.py`, `gates/promotion.yaml` | Policy as YAML; both models re-scored from the registry on the current holdout, so the packaged artefact is what gets judged; a per-run split manifest records hashed train/test membership; evaluation refuses missing evidence, changed holdouts or overlap with either model’s training rows before scoring |
 | Governance | `model_card.py` | Intended use, data lineage, metrics with CIs, slice analysis, the full check table, approver, reproduction command — the fields an SR 11-7 / APRA CPG 235 reviewer asks for |
 | Ops | `deploy/`, `.github/workflows/ci.yml` | Tracking server with Postgres backend store + MinIO artifact store behind `--serve-artifacts`; CI trains, gates in dry-run, writes the model card to the job summary and only a human-approved environment job moves the alias |
 
@@ -142,8 +142,13 @@ then `export MLREG_TRACKING_URI=http://localhost:5000` — the same commands log
   training predictions would be optimistic. OOF PDs from the CV loop are the right population.
 - **Score PSI as a decision-stability check.** Equal AUC does not mean equal decisions; a PD
   distribution on a different scale moves the accept/decline line for real customers.
-- **`same_data_snapshot`.** A paired comparison is only valid when neither model has seen the
-  holdout rows; both versions carry `data.fingerprint`, and the gate refuses to pair them otherwise.
+- **Actual holdout identity.** Each training run writes `evaluation/split_manifest.json` with
+  hashed train/test IDs and a digest stored on the run. Promotion (including the first model),
+  comparison and model-card evaluation validate this evidence before loading either model.
+  Changing the split seed or test size cannot silently evaluate training rows. Whole-CSV
+  fingerprints remain a snapshot check; they cannot establish holdout independence alone.
+  Models from older runs without a manifest return HOLD and must be retrained to supply
+  evidence; their historical reports remain available without being retroactively verified.
 - **The pyfunc is the deliverable.** Signature (with a `threshold` param) + input example +
   pinned requirements + bundled package code, so `mlflow models serve`, batch scoring and the
   gate all load the same artefact; the gate scores *from the registry*, not from memory.
@@ -155,7 +160,8 @@ then `export MLREG_TRACKING_URI=http://localhost:5000` — the same commands log
 
 ## Related projects
 
-- [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) — the registry's `@champion` becomes a SageMaker
-  training/inference container with blue/green rollout, auto-rollback and an OIDC-secured CD pipeline.
+- [`sagemaker-byoc-deploy`](../sagemaker-byoc-deploy) — a separate training/inference container
+  with blue/green rollout, rollback and OIDC. Exporting this exact `@champion` artefact into its
+  serving contract remains integration work.
 - [`model-monitoring-drift`](../model-monitoring-drift) — inference logs from the deployed model
   are checked for data, prediction and performance drift with a calibrated alert policy.
